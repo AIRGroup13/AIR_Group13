@@ -25,7 +25,7 @@ def readdata(filepath):
 
 
 def main():
-  path = 'C:/Users/burim/Documents/Uni/AIR/AIRProject/Comments.csv'
+  path = 'Comments.csv'
   data = readdata(path)
   print(data['comments'][0])
 
