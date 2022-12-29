@@ -8,7 +8,7 @@ import pandas as pd
 # put the Channel ID into the channels_IDs
 
 api_key = 'AIzaSyAUr8JGDOQZoGSVU4EjHhI5M0j8jQhzDZ0'
-channel_IDs = ['UCLXlZXX8Ho8Dk6xF-e-vY1A']
+channel_IDs = ['UCq2E1mIwUKMWzCA4liA_XGQ']
 
 # Get credentials and create an API client
 api_service_name = "youtube"
@@ -72,31 +72,39 @@ def get_video_id(playlist_ID):
 
 def getComments(videoIDs):
   comments = []
-
+  counter = 0
   for videoID in videoIDs:
+    if(counter % 20 == 0):
+      print(round((counter * 100) / len(videoIDs)), '%')
+
     try:
       request = youtube.commentThreads().list(
         part='snippet,replies',
-        videoId=videoID
+        videoId=videoID,
+        maxResults=100
       )
       response = request.execute()
 
       videoComments = [comment["snippet"]['topLevelComment']['snippet']['textOriginal'] for comment in response['items'][0:100]]
-      videoCommentsInfo = {'videoID': videoID, 'comments': videoComments}
+      videoCommentsInfo = {'commentlen': len(videoComments),'videoID': videoID, 'comments': videoComments}
 
       comments.append(videoCommentsInfo)
-
+  
     except:
       print('This video do not have comments or the comments could not get retrived ', videoID)
 
+    counter += 1
+
   return pd.DataFrame(comments)
+
 
 def main():
   channelInfo = getChannelInfo(api_key,channel_IDs)
+  print(channelInfo)
   videoIDs = get_video_id(channelInfo["playlistID"][0])
   comments  = getComments(videoIDs)
   
-  comments.to_csv('C:/Users/burim/Documents/Uni/AIR/AIRProject/Comments.csv', encoding='utf-8')
+  comments.to_csv('Comments.csv', encoding='utf-8')
 
 
 if __name__ == "__main__":
