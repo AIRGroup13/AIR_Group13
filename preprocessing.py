@@ -25,12 +25,9 @@ import re
 import string
 import ast
 #spelling correction library
-#autocorrect has to be installed by typing "pip install autocorrect" in terminal 
 import itertools
 from autocorrect import Speller
 #spacy for language detection
-#spacy has to be installed by typing "pip install spacy" in terminal 
-#spacy-langdetect has to be installed by typing "pip install spacy-langdetect" in terminal 
 import spacy
 from spacy.language import Language
 from spacy_langdetect import LanguageDetector
@@ -107,7 +104,8 @@ def preprocessing(video_corpus, stem_or_lemma = 'stem'):
         #lematizing
         lm = WordNetLemmatizer()
         result = [lm.lemmatize(i) for i in result]
-      cleaned_comments.append(result)
+      #cleaned_comments.append(result)
+      cleaned_comments.append(" ".join([com for com in result]))
     #print(len(cleaned_comments),":",cleaned_comments)
     cleaned_text.append(cleaned_comments)
     if i == 10:
