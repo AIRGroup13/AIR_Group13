@@ -65,7 +65,7 @@ def readdata(filepath):
   df = pd.read_csv(filepath)
   return df
 #<-------------------------------------------
-def preprocessing(video_corpus, stem_or_lemma = 'stem'):
+def preprocessing(video_corpus, stem_or_lemma = 'lemma'):
   cleaned_text = []
   for i, comments in enumerate(video_corpus):
     # convert string object to a list of separate comments
