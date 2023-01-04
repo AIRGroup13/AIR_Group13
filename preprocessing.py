@@ -67,6 +67,7 @@ def readdata(filepath):
 #<-------------------------------------------
 def preprocessing(video_corpus, stem_or_lemma = 'lemma'):
   cleaned_text = []
+  commentlen = 0 #
   for i, comments in enumerate(video_corpus):
     # convert string object to a list of separate comments
     list_comments = ast.literal_eval(comments)
@@ -108,8 +109,10 @@ def preprocessing(video_corpus, stem_or_lemma = 'lemma'):
       cleaned_comments.append(" ".join([com for com in result]))
     #print(len(cleaned_comments),":",cleaned_comments)
     cleaned_text.append(cleaned_comments)
-    if i == 10:
-      break
+    commentlen += len(cleaned_text) #
+    #if i == 10:
+      #break
+  print(commentlen) #
   return pd.DataFrame(cleaned_text)
 #>-------------------------------------------
 def main():
