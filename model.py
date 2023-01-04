@@ -8,6 +8,21 @@ from tqdm.auto import tqdm
 texts = ["Really good video!", "Wasn't that bad", "Thank you", "She drives a green car", "TOP",
         "It was the worst", "A waste of time!", "Informative video and well explained."]
 
+#Get preprocessed comments
+df = pd.read_csv("Comments_prep.csv")
+dataset = []
+for row in df.iterrows():
+    one_video = []
+    for comment in row:
+      if(type(comment) == int):
+        continue
+      temp_list = [item for item in comment if not(pd.isnull(item)) == True] #remove NaN comments
+      for entry in temp_list:
+        if type(entry) is not str: 
+          temp_list.remove(entry) #remove column numbers from dataFrame
+    dataset.append(temp_list)
+print(type(dataset), len(dataset))    
+
 ####################################################################################################################
 #Distilbert
 tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
@@ -24,7 +39,7 @@ print(device)
 #will be changed to comments from youtube channel
 
 with torch.no_grad():
-    input = tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
+    input = tokenizer(dataset, padding=True, truncation=True, is_split_into_words=True, return_tensors='pt')
     input.to(device)
     output = model(**input)
     for sequence in output.logits:
@@ -125,7 +140,7 @@ for t in range(num_epochs):
 #will be changed to comments from youtube channel
 
 with torch.no_grad():
-    input = tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
+    input = tokenizer(dataset, padding=True, truncation=True, is_split_into_words=True, return_tensors='pt')
     input.to(device)
     output = model(**input)
     for sequence in output.logits:
