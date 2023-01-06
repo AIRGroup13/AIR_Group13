@@ -2,11 +2,13 @@ import torch
 import pandas as pd
 import pyarrow as pa
 import datasets
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding, AdamW
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 from tqdm.auto import tqdm
-import string
-import nltk
-import re
+
+#for baseline model
+from sklearn.linear_model import SGDClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 
 ####################################################################################################################
 #Get preprocessed comments
@@ -38,8 +40,7 @@ model.to(device)
 print(device)
 
 ###############################################################################################################
-#Calculating output with comments from array text before fine-tuning model
-#will be changed to comments from youtube channel
+#Calculating output before fine-tuning model
 
 outputs_before = []
 
@@ -172,8 +173,7 @@ for t in range(num_epochs):
     test(test_dataloader, model, batch_size)
 
 ###############################################################################################################
-#Calculating output with comments from array text after fine-tuning model
-#will be changed to comments from youtube channel
+#Calculating output after fine-tuning model
 
 outputs_after = []
 
@@ -226,3 +226,63 @@ print("Total same evaluation:", total_same_eval)
 print("Total different evaluation:", total_diff_eval)
 print("Before - positive:", total_pos_before, "negative:", total_neg_before)
 print("After - positive:", total_pos_after, "negative:", total_neg_after)
+
+###############################################################################################################
+# Baseline model from sklearn - sklearn.linear_model.SGDClassifier
+
+#<------------------------------------------------------------------------------
+#Fit model with train data
+temp_X = tokenized_datasets_tweets_prep["train"]["input_ids"]
+y = tokenized_datasets_tweets_prep["train"]["labels"].tolist()
+max_len_x = 48
+
+#change type of temp_X from tensor to list and make all entries the same length
+X = []
+for i in range(len(temp_X)):
+  temp_list = temp_X[i].tolist()
+  if(len(temp_list) != max_len_x):
+    for i in range(max_len_x - len(temp_list)):
+     temp_list.append(0)
+  X.append(temp_list)
+
+#Implementation of model from https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html#sklearn.linear_model.SGDClassifier
+baseline_model = make_pipeline(StandardScaler(), SGDClassifier(max_iter=1000, tol=1e-3))
+baseline_model.fit(X, y)
+
+#<------------------------------------------------------------------------------
+#Test the baseline model with test data
+temp_input = tokenized_datasets_tweets_prep["test"]["input_ids"]
+input = []
+max_len_x = 48
+
+for i in range(len(temp_input)):
+  temp_list = temp_input[i].tolist()
+  if(len(temp_list) != max_len_x):
+    for i in range(max_len_x - len(temp_list)):
+     temp_list.append(0)
+  input.append(temp_list)
+
+predicted = baseline_model.predict(input)
+print(predicted)
+references = tokenized_datasets_tweets_prep["test"]["labels"].tolist()
+
+true_positive = 0
+true_negative = 0
+false_positive = 0
+false_negative = 0
+for i in range(len(predicted)):
+  if(predicted[i] == 1 and references[i] == 1):
+    true_positive += 1
+  if(predicted[i] == 1 and references[i] == 0):
+    false_positive += 1
+  if(predicted[i] == 0 and references[i] == 1):
+    false_negative += 1
+  if(predicted[i] == 0 and references[i] == 0):
+    true_negative += 1
+
+precision = true_positive/(true_positive + false_positive)
+recall = true_positive/(true_positive + false_negative)
+f_score = 2*precision*recall / (precision + recall)
+accuracy = (true_positive + true_negative)/(true_positive + true_negative + false_positive + false_negative)
+print("Baseline model - Precision:", precision, "Recall:", recall,
+      "F_score:", f_score, "Accuracy:", accuracy)
