@@ -30,19 +30,7 @@ for row in df.iterrows():
 #Distilbert
 tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
 model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-
-#DATASET yelp_reviews
-def tokenize(data):
-    return tokenizer(data["text"], padding=True, truncation=True, return_tensors='pt')
-    
-dataset = pd.read_csv("Reviews_prep.csv")
-tokenized_datasets = dataset.map(tokenize, batched=True)
-tokenized_datasets = tokenized_datasets.remove_columns(["text"]).rename_column("label", "labels")
-tokenized_datasets.set_format("torch")
-collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
-exit(0)
-
+ 
 ####################################################################################################################
 #Use GPU for faster training
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -82,27 +70,23 @@ outputs_before_df.to_csv('Evaluation_before_finetuning.csv', encoding='utf-8')
 def tokenize(data):
     return tokenizer(data["text"], padding=True, truncation=True, return_tensors='pt')
 
-dataset = pd.read_csv("Tweets.csv")
+dataset_tweets_prep = pd.read_csv("Tweets_prep.csv")
+dataset_tweets_prep = dataset_tweets_prep.mask(dataset_tweets_prep.eq('None')).dropna() # remove comments where None is stored, otherwise tokenizer throws error
 
-dataset = dataset.drop(columns=['textID', 'selected_text'])
-dataset = dataset.rename(columns={"sentiment": "labels"})
-dataset = dataset.mask(dataset.eq('None')).dropna() # remove comments where None is stored, otherwise tokenizer throws error
+dataset_tweets_prep = datasets.Dataset(pa.Table.from_pandas(dataset_tweets_prep))
+training_data2, test_data2 = dataset_tweets_prep.train_test_split(test_size=0.2).values()
+dataset_tweets_prep = datasets.DatasetDict({"train":training_data2,"test":test_data2})
 
-dataset = datasets.Dataset(pa.Table.from_pandas(dataset))
-training_data, test_data = dataset.train_test_split(test_size=0.2).values()
-dataset = datasets.DatasetDict({"train":training_data,"test":test_data})
-
-tokenized_datasets = dataset.map(tokenize, batched=True)
-tokenized_datasets = tokenized_datasets.remove_columns(['__index_level_0__', 'text'])
-tokenized_datasets.set_format("torch")
-print(tokenized_datasets)
+tokenized_datasets_tweets_prep = dataset_tweets_prep.map(tokenize, batched=True)
+tokenized_datasets_tweets_prep = tokenized_datasets_tweets_prep.remove_columns(['__index_level_0__', 'text', 'Unnamed: 0'])
+tokenized_datasets_tweets_prep.set_format("torch")
 
 collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
 #Create Dataloader
 batch_size = 8
-train_dataloader = torch.utils.data.DataLoader(tokenized_datasets["train"], batch_size=batch_size, collate_fn=collator)
-test_dataloader = torch.utils.data.DataLoader(tokenized_datasets["test"], batch_size=batch_size, collate_fn=collator)
+train_dataloader = torch.utils.data.DataLoader(tokenized_datasets_tweets_prep["train"], batch_size=batch_size, collate_fn=collator)
+test_dataloader = torch.utils.data.DataLoader(tokenized_datasets_tweets_prep["test"], batch_size=batch_size, collate_fn=collator)
 
 #Train loop
 def train(dataloader, model, optimizer, batch_size, progress_bar):
@@ -143,10 +127,9 @@ def train(dataloader, model, optimizer, batch_size, progress_bar):
   accuracy = (true_positive + true_negative)/(len(dataloader)*batch_size)
   print("Training individual - Loss value:", loss_value, "Precision:", precision, 
         "Recall:", recall, "F_score:", f_score, "Accuracy:", accuracy)
-  return loss_value, precision, recall, f_score, accuracy
 
 #Test loop
-def test(dataloader, model, metric, batch_size, progress_bar):
+def test(dataloader, model, batch_size):
   model.eval()
   total_loss = 0 
   true_positive = 0
@@ -169,37 +152,24 @@ def test(dataloader, model, metric, batch_size, progress_bar):
         if(predicted[i] == 0 and references[i] == 1):
           false_positive += 1
         if(predicted[i] == 0 and references[i] == 0):
-          true_negative += 1  
-      metric.add_batch(predictions=predicted, references=batch["labels"])
+          true_negative += 1
   loss_value = (total_loss/len(dataloader)).item()
-  if (true_positive + false_positive) == 0:
-    precision = 0
-  else:
-    precision = true_positive/(true_positive + false_positive)
-  if (true_positive+false_negative) == 0:
-    recall = 0
-  else:
-    recall = true_positive/(true_positive + false_negative)
-  if (precision + recall) == 0:
-    f_score = 0
-  else:
-    f_score = 2*precision*recall / (precision + recall)
+  precision = true_positive/(true_positive + false_positive)
+  recall = true_positive/(true_positive + false_negative)
+  f_score = 2*precision*recall / (precision + recall)
   accuracy = (true_positive + true_negative)/(len(dataloader)*batch_size)
   print("Testing individual - Loss value:", loss_value, "Precision:", precision, 
         "Recall:", recall, "F_score:", f_score, "Accuracy:", accuracy)
-  print(metric.compute())
-  return loss_value, precision, recall, f_score, accuracy
 
 #Run train and test loop
-optimizer = AdamW(model.parameters(), lr=5e-5)
-metric = evaluate.load("glue", "mrpc")
+optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 num_epochs = 3
 progress_bar = tqdm(range(num_epochs * len(train_dataloader)))
 
 for t in range(num_epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(train_dataloader, model, optimizer, batch_size, progress_bar)
-    test(test_dataloader, model, metric, batch_size, progress_bar)
+    test(test_dataloader, model, batch_size)
 
 ###############################################################################################################
 #Calculating output with comments from array text after fine-tuning model
