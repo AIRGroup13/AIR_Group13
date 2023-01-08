@@ -25,7 +25,6 @@ from wordcloud import WordCloud
 import re
 import string
 import ast
-import datasets
 from tqdm.auto import tqdm
 #spelling correction library
 import itertools
@@ -34,15 +33,11 @@ from autocorrect import Speller
 import spacy
 from spacy.language import Language
 from spacy_langdetect import LanguageDetector
-#
 # factory decorator for spacy language detetion below
 @Language.factory("language_detector") # uncomment for the first run
 def get_lang_detector(nlp, name):
   return LanguageDetector()
 
-#import en_core_web_sm
-
-#nlp = en_core_web_sm.load()
 nlp=spacy.load("en_core_web_sm") #"en_core_web_sm"
 nlp.add_pipe('language_detector', last=True)
 #function to remove emoji
@@ -158,14 +153,13 @@ def preprocessing_training(data):
 def main():
   path = 'Comments.csv'
   data = readdata(path)
-  print(type(data))
   #print(data['comments'][0])
 #<-------------------------------------------  
   print(len(data))
   Comments_prep = preprocessing(data['comments'],"lemma")
   #print(Comments_prep)
   Comments_prep.to_csv('Comments_prep.csv', encoding='utf-8')
-
+#<-------------------------------------------
   tweets = readdata('Tweets.csv')
   tweets = tweets.drop(columns=['textID', 'selected_text'])
   tweets = tweets.rename(columns={"sentiment": "labels"})
