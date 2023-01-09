@@ -1,7 +1,7 @@
 from googleapiclient.discovery import build
 from IPython.display import JSON
 import pandas as pd
-
+import time
 # How to get the Channel ID
 # Go to the preferd Channel copy link
 # insert the link hier https://commentpicker.com/youtube-channel-id.php
@@ -99,6 +99,8 @@ def getComments(videoIDs):
 
 
 def main():
+  start = time.time()
+  
   channelInfo = getChannelInfo(api_key,channel_IDs)
   print(channelInfo)
   videoIDs = get_video_id(channelInfo["playlistID"][0])
@@ -106,6 +108,8 @@ def main():
   
   comments.to_csv('Comments.csv', encoding='utf-8')
 
+  end = time.time()
+  print("time:",end - start)
 
 if __name__ == "__main__":
     main()
